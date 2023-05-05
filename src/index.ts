@@ -1,13 +1,25 @@
 import { json } from 'body-parser';
+import { default as dotenv } from 'dotenv';
 import { default as express } from 'express';
+import { errorHandler, setHeaders } from './middlewares';
 import { feedRoutes } from './routes';
-import { setHeaders } from './middlewares';
+import { Database } from './services';
 
 const app = express();
+
+dotenv.config();
 
 app.use(json());
 app.use(setHeaders);
 
 app.use('/feed', feedRoutes);
 
-app.listen(4000);
+app.use(errorHandler);
+
+Database.connect((success) => {
+  const port = process.env.PORT || 4000;
+  if (success) {
+    app.listen(port);
+    console.log(`Server is running on port ${port}`);
+  }
+});
