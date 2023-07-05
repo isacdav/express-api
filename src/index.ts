@@ -2,7 +2,7 @@ import { json } from 'body-parser';
 import { default as dotenv } from 'dotenv';
 import { default as express } from 'express';
 import { errorHandler, setHeaders } from './middlewares';
-import { feedRoutes } from './routes';
+import { authRoutes, feedRoutes } from './routes';
 import { Database } from './services';
 
 const app = express();
@@ -13,6 +13,7 @@ app.use(json());
 app.use(setHeaders);
 
 app.use('/feed', feedRoutes);
+app.use('/auth', authRoutes);
 
 app.use(errorHandler);
 

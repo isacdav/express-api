@@ -1,6 +1,6 @@
 import { RequestHandler } from 'express';
 import { validationResult } from 'express-validator';
-import { Post } from '../../models';
+import { Post, User } from '../../models';
 
 export const getPosts: RequestHandler = async (req, res, next) => {
   try {
@@ -46,14 +46,22 @@ export const createPost: RequestHandler = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      const error: any = new Error('Validation failed');
+      error.statusCode = 422;
+      error.data = errors.array();
+      throw error;
     }
 
     const title = req.body.title;
     const content = req.body.content;
     const imageUrl = req.body.imageUrl;
 
-    const post = new Post({ title, content, imageUrl });
+    const post = new Post({ title, content, imageUrl, creator: req.userId });
     const savedPost = await post.save();
+
+    const user = await User.findById(req.userId);
+    user?.posts.push(savedPost._id);
+    user?.save();
 
     res.status(200).json({
       success: true,
@@ -71,6 +79,10 @@ export const updatePost: RequestHandler = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      const error: any = new Error('Validation failed');
+      error.statusCode = 422;
+      error.data = errors.array();
+      throw error;
     }
 
     const id = req.params.id;
@@ -83,6 +95,12 @@ export const updatePost: RequestHandler = async (req, res, next) => {
     if (!post) {
       const error: any = new Error('Post not found');
       error.statusCode = 404;
+      throw error;
+    }
+
+    if (post.creator.toString() !== req.userId) {
+      const error: any = new Error('Not authorized');
+      error.statusCode = 403;
       throw error;
     }
 
@@ -115,7 +133,14 @@ export const deletePost: RequestHandler = async (req, res, next) => {
       throw error;
     }
 
+    if (post.creator.toString() !== req.userId) {
+      const error: any = new Error('Not authorized');
+      error.statusCode = 403;
+      throw error;
+    }
+
     await Post.findByIdAndDelete(id);
+    await User.updateOne({ _id: req.userId }, { $pull: { posts: id } });
 
     res.status(200).json({
       success: true,
